@@ -13,5 +13,15 @@ CHIP FullAdder {
         carry;   // Left bit of a + b + c
 
     PARTS:
-    // Put you code here:
+/*
+First attempt below (it works but doesn't use two half adders)
+    HalfAdder(a=b,b=c,sum=s1,carry=c1);
+    Not(in=s1,out=nots1);
+    Or(a=b,b=c,out=or1);
+    Mux(a=s1,b=nots1,sel=a,out=sum);
+    Mux(a=c1,b=or1,sel=a,out=carry);
+*/
+    HalfAdder(a=a,b=b,sum=s1,carry=c1);
+    HalfAdder(a=s1,b=c,sum=sum,carry=c2);
+    Or(a=c1,b=c2,out=carry);
 }
