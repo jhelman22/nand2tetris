@@ -1,28 +1,63 @@
 class Assembler
   attr_reader :filename, :assembly_code
+  attr_accessor :labels, :variables
 
   def initialize(filename)
     @filename = filename
     @assembly_code = File.readlines(filename)
+    @labels = {}
+    @variables = {
+      pointer: 16, # address of next free variable space
+      "SP" => 0,
+      "LCL" => 1,
+      "ARG" => 2,
+      "THIS" => 3,
+      "THAT" => 4,
+      "SCREEN" => 16384,
+      "KBD" => 24576
+    }.merge(Hash[16.times.map{|i| ["R#{i}", i]}])
   end
 
   def assemble
-    # clean up code for processing
-    cleaned = assembly_code.map do |line|
-      line.strip! # remove all whitespace from start and end
-      (line[0] == '/' || line.empty?) ? nil : line # remove comment lines and blank lines
-    end.reject(&:nil?)
-    
-    assembled = cleaned.map do |instruction|
+    assembled = clean_and_store_labels.map do |instruction|
       instruction[0] == '@' ? translate_a(instruction) : translate_c(instruction)
     end.join("\n")
 
     File.write(filename.gsub('.asm','.hack'), assembled)
   end
 
+  def clean_and_store_labels
+    # clean up code for processing
+    cleaned = assembly_code.map do |line|
+      line.strip! # remove all whitespace from start and end
+      (line[0] == '/' || line.empty?) ? nil : line # remove comment lines and blank lines
+    end.reject(&:nil?)
+
+    cleaned.map.with_index do |line, i|
+      if line[0] == '(' # store labels and remove label declarations
+        label = line[1...line.index(')')]
+        labels[label] = i - labels.count
+        nil
+      else
+        line.split("//")[0].strip # remove inline comments
+      end
+    end.reject(&:nil?)
+  end
+
   def translate_a(instruction)
     value = instruction[1..-1]
-    # TODO: convert symbols to numerical address
+    if value.to_i.to_s != value # this is to check if we have a variable instead of an int
+      if labels.has_key?(value) # if its a label ready for jumping
+        value = labels[value]
+      else
+        unless variables.has_key?(value)
+          variables[value] = variables[:pointer] # assign variable to next free memory space
+          variables[:pointer] += 1 # increment variable memory pointer
+        end
+        value = variables[value]
+      end
+    end
+  
     "%016b" % value
   end
 
